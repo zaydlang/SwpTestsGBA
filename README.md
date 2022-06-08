@@ -1,18 +1,24 @@
-# PrefetchAbuse
-This rom tests some weird behavior of the GBA prefetcher which can cause some ROM data accesses to delay one cycle longer than expected. 
+# SwpBusLocking
+This rom tests the bus-locking behavior of the SWP opcode. 
 
-## Prefetcher 1-Cycle Delay Behavior
-Basically, when the prefetcher is currently in the middle of prefetching an opcode and a ROM data access is made (either reads or writes, doesn't matter), the access will idle an extra cycle than it normally does if either:
-
-A) The prefetcher is in THUMB mode and is 1 cycle away from finishing it's current fetch.
-
-B) The prefetcher is in ARM mode and is 1 cycle away from finishing fetching either halfword that makes up the full word.
-
-It's worth noting that ROM accesses normally take (<# of waitstates> + 1) cycles to complete. It seems logical that this + 1 cycle is special in some way. Exactly how it's special, I'm not sure, but the fact remains that if a ROM data access is made while the prefetcher is in that special cycle, the ROM access stalls an extra cycle.
+## Bus Locking Behavior
+A SWP opcode in ARMv4T is composed of a read cycle and a write cycle, in that order. Since SWP is
+typically used by software to implement thread-related mechanisms like semaphores, the CPU locks
+the bus throughout the read and write cycle, preventing anything else (e.g. DMA) from accessing 
+the bus while the SWP is being executed.
 
 ## How The Test Works
-This rom will work through 4 different waitstate configurations (the same ones used in the mGBA test suite, 0x4000, 0x4004, 0x4010, and 0x4014). For each waitstate configuration, it will run 1-8 NOPs and then immediately perform a ROM data read. Then it will time how long that data read took and compare it against results from hardware.
+This rom has a function in IWRAM that will run a DMA then immediately perform a SWP. The DMA and
+the SWP both write to the same word in memory. Because this function is in IWRAM, and because DMA 
+takes 2 cycles to start up, the CPU has *just* enough time to begin executing the SWP opcode before
+the DMA fires. The first thing the SWP opcode does is its read cycle, so this read cycle is 
+guaranteed to occur before the DMA. Then, one of two things can happen:
 
-The rom will perform this same procedure for both reads and writes. The test as well as the expected behavior for reads and writes is the same, it's just that the `ldr` that occurs after the idle cycles is replaced with an `str`. This makes a total of 32 * 2 = 64 tests.
+A) The SWP opcode locks the bus during execution, causing the DMA to occur after the SWP write and
+   therefore overwrite whatever value the SWP wrote.
+B) The SWP opcode does not lock the bus during execution, causing the SWP write to occur after the
+   DMA and therefore overwrite whatever value the DMA wrote.
 
-Press A to cycle between the read tests and the write tests.
+The DMA writes the value 0xCAFEBABE, and the SWP writes the value 0xDEADBEEF. The final written
+value will be displayed on screen when the test is run (it should display 0xCAFEBABE). Green background
+means you pass, red background means you fail.
