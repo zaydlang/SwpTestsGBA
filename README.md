@@ -14,8 +14,10 @@ takes 2 cycles to start up, the CPU has *just* enough time to begin executing th
 the DMA fires. The first thing the SWP opcode does is its read cycle, so this read cycle is 
 guaranteed to occur before the DMA. Then, one of two things can happen:
 
+
 A) The SWP opcode locks the bus during execution, causing the DMA to occur after the SWP write and
    therefore overwrite whatever value the SWP wrote.
+   
 B) The SWP opcode does not lock the bus during execution, causing the SWP write to occur after the
    DMA and therefore overwrite whatever value the DMA wrote.
 
