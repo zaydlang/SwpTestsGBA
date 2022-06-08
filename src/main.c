@@ -5,6 +5,9 @@
 #include <gba_input.h>
 #include <stdio.h>
 
+#define GREEN (RGB8(25,  179, 25))
+#define RED   (RGB8(237, 5,   5))
+
 uint32_t dma_source = 0xCAFEBABE;
 
 __attribute((section(".ewram"))) 
@@ -42,5 +45,6 @@ int main(void) {
     uint32_t result = run_swp_test();
     printf("%08lx", result);
 
+    BG_PALETTE[0] = result == 0xCAFEBABE ? GREEN : RED;
     while (1);
 }
